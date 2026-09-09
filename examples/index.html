@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>thermorinter demo</title>
+    <style>
+      body { font: 15px system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+      h1 { font-size: 1.3rem; }
+      fieldset { border: 1px solid #ccc; border-radius: 8px; margin-bottom: 1rem; }
+      legend { font-weight: 600; }
+      button { padding: .5rem .9rem; margin: .2rem; border-radius: 6px; cursor: pointer; }
+      textarea, input[type=text] { width: 100%; box-sizing: border-box; }
+      #log { background: #111; color: #0f0; padding: .6rem; border-radius: 6px; height: 180px; overflow: auto; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; }
+      .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+      label { font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>🐱🖨 thermorinter demo</h1>
+    <p>Requires Chrome/Edge over <b>https</b> or <b>http://localhost</b>. Click Connect (user gesture required).</p>
+
+    <fieldset>
+      <legend>Device</legend>
+      <div class="row">
+        <button id="connect">Connect</button>
+        <button id="status">Status</button>
+        <button id="feed">Feed</button>
+        <button id="disconnect">Disconnect</button>
+        <span id="state">not connected</span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Text</legend>
+      <textarea id="text" rows="3">Hello from thermorinter!</textarea>
+      <div class="row">
+        <label>Font <input id="font" type="number" value="28" style="width:4rem" /></label>
+        <label>Align
+          <select id="align"><option>left</option><option>center</option><option>right</option></select>
+        </label>
+        <label>Dark <input id="energy" type="number" value="12288" style="width:6rem" /></label>
+        <button id="printText">Print Text</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Image</legend>
+      <div class="row">
+        <input id="file" type="file" accept="image/*" />
+        <label><input id="dither" type="checkbox" checked /> Dither</label>
+        <button id="printImage">Print Image</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Log</legend>
+      <div id="log"></div>
+    </fieldset>
+
+    <script type="module">
+      import { CatPrinter } from "../dist/index.js";
+
+      const $ = (id) => document.getElementById(id);
+      const logEl = $("log");
+      const log = (m) => { logEl.textContent += m + "\n"; logEl.scrollTop = logEl.scrollHeight; };
+
+      const printer = new CatPrinter({
+        onLog: log,
+        onDisconnect: () => ($("state").textContent = "not connected"),
+      });
+
+      const jobOpts = () => ({ energy: Number($("energy").value) || 12288 });
+
+      $("connect").onclick = async () => {
+        try {
+          await printer.connect();
+          $("state").textContent = "connected: " + (printer.device?.name ?? "printer");
+        } catch (e) { log("ERR " + e.message); }
+      };
+      $("disconnect").onclick = () => printer.disconnect();
+      $("feed").onclick = () => printer.feed(60).catch((e) => log("ERR " + e.message));
+
+      $("status").onclick = async () => {
+        try {
+          const s = await printer.getStatus();
+          log("firmware: " + s.firmware);
+          log("state:    " + s.stateRaw + "  ae10: " + s.ae10Raw);
+          log("battery:  " + (s.battery ?? "not reported by this model"));
+        } catch (e) { log("ERR " + e.message); }
+      };
+
+      $("printText").onclick = async () => {
+        try {
+          await printer.printText($("text").value, {
+            fontSize: Number($("font").value) || 28,
+            align: $("align").value,
+            ...jobOpts(),
+            onProgress: (s, t) => log(`  ${Math.round((100 * s) / t)}%`),
+          });
+          log("text printed");
+        } catch (e) { log("ERR " + e.message); }
+      };
+
+      $("printImage").onclick = async () => {
+        const f = $("file").files?.[0];
+        if (!f) return log("choose an image first");
+        const img = new Image();
+        img.onload = async () => {
+          try {
+            await printer.printImage(img, { dither: $("dither").checked, ...jobOpts() });
+            log("image printed");
+          } catch (e) { log("ERR " + e.message); }
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(f);
+      };
+    </script>
+  </body>
+</html>

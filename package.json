@@ -1,0 +1,40 @@
+{
+  "name": "thermorinter",
+  "version": "0.1.0",
+  "description": "Browser SDK (Web Bluetooth) for BLE 'cat' thermal printers using the 0xAE30 protocol.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.ts",
+    "serve:demo": "python3 -m http.server 8000",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "thermal-printer",
+    "bluetooth",
+    "web-bluetooth",
+    "cat-printer",
+    "ble",
+    "gb01",
+    "gt01"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/web-bluetooth": "^0.0.20",
+    "tsup": "^8.3.0",
+    "typescript": "5.6.3"
+  }
+}
